@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bonato's Health — Atualizado</title>
+  <style>
+    :root{--accent:#ff5b5b;--muted:#f4f4f4}
+    body{font-family:Inter, Arial, sans-serif;margin:0;background:var(--muted);color:#222}
+    header{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--accent);color:#fff}
+    header img{width:44px;height:44px;border-radius:8px}
+    main{display:grid;grid-template-columns:1fr 420px;gap:20px;padding:18px;max-width:1100px;margin:18px auto}
+    .card{background:#fff;padding:16px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+    h2{margin:6px 0 12px;color:#b93d3d}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    input,select,textarea,button{padding:8px;border-radius:8px;border:1px solid #ddd;font-size:14px}
+    input[type=date],input[type=time]{min-width:130px}
+    button{background:var(--accent);color:#fff;border:none;cursor:pointer}
+    .small{font-size:13px;padding:6px}
+    #listaMedicoes > .item{padding:10px;border-bottom:1px solid #eee}
+    .muted{color:#666;font-size:13px}
+    .empty-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:6px;border:1px solid #eee;text-align:left;font-size:13px}
+    @media(max-width:920px){main{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <img src="health.png" alt="Health" onerror="this.style.display='none'" />
+    <div>
+      <div style="font-weight:700">Bonato's Health</div>
+      <div style="font-size:12px;opacity:0.9">Registro local (LocalStorage) — sem nuvem</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left: registro + lista -->
+    <div class="card">
+      <h2>Perfil do usuário</h2>
+      <div class="row" style="align-items:center">
+        <input id="nome" placeholder="Nome completo" style="flex:1" />
+        <input id="nascimento" type="date" />
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="peso" type="number" placeholder="Peso (kg)" />
+        <input id="altura" type="number" placeholder="Altura (cm)" />
+        <select id="sexo"><option value="">Sexo</option><option value="M">Masculino</option><option value="F">Feminino</option><option value="O">Outro</option></select>
+        <button class="small" onclick="salvarPerfil()">Salvar perfil</button>
+      </div>
+      <div id="perfilInfo" class="muted" style="margin-top:8px"></div>
+
+      <hr style="margin:14px 0;border:none;border-top:1px solid #f0f0f0" />
+
+      <h2>Registrar medição</h2>
+      <div class="row">
+        <input type="date" id="data" />
+        <input type="time" id="hora" />
+        <select id="refeicao"><option>Pré-alimento</option><option>Pós-alimento</option></select>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input type="number" id="glicemia" placeholder="Glicemia (mg/dL)" />
+        <input type="text" id="pressao" placeholder="Pressão (Ex: 120/80)" />
+        <button onclick="adicionarMedicao()">Adicionar</button>
+      </div>
+      <textarea id="observacoes" placeholder="Observações (opcional)" rows="2" style="width:100%;margin-top:8px"></textarea>
+
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+        <label class="muted">Procurar por data:</label>
+        <input type="date" id="filtroData" onchange="aplicarFiltroData()" />
+        <button class="small" onclick="limparFiltro()">Hoje</button>
+        <button class="small" onclick="limparTodasMedicoes()" style="background:#ccc;color:#222">Limpar todas</button>
+      </div>
+
+      <div id="listaMedicoes" style="margin-top:12px"></div>
+    </div>
+
+    <!-- Right: relatórios/graficos/pdf -->
+    <div class="card">
+      <h2>Relatórios & PDF</h2>
+      <div class="row" style="align-items:center;margin-bottom:10px">
+        <select id="periodo">
+          <option value="7">7 dias</option>
+          <option value="15">15 dias</option>
+          <option value="30">30 dias</option>
+        </select>
+        <button onclick="gerarGraficos()">Visualizar gráfico</button>
+        <button onclick="gerarPDF()">Gerar PDF (data filtrada)</button>
+      </div>
+
+      <div id="graficos" style="margin-bottom:12px">
+        <div style="margin-bottom:10px"><strong>Glicemia</strong></div>
+        <canvas id="graficoGlicemia" width="380" height="200"></canvas>
+        <div style="margin-top:10px"><strong>Pressão Sistólica (valores)</strong></div>
+        <canvas id="graficoPressao" width="380" height="200"></canvas>
+      </div>
+
+      <div class="card" style="margin-top:8px;padding:8px">
+        <div style="font-weight:600;margin-bottom:8px">Resumo (seleção atual)</div>
+        <div id="resumo" class="muted">Nenhuma seleção ainda.</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- container invisível para impressão do PDF -->
+  <div id="pdfContainer" style="position:fixed;left:-9999px;top:-9999px;padding:20px;background:white;width:800px" aria-hidden="true"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <script>
+    // --- utilidades ---
+    const storageKey = 'bonatos_medicoes_v1';
+    const perfilKey = 'bonatos_perfil_v1';
+
+    function hojeISO() {
+      const d = new Date();
+      return d.toISOString().slice(0,10);
+    }
+
+    // --- carregar / salvar perfil ---
+    function salvarPerfil(){
+      const perfil = {
+        nome: document.getElementById('nome').value.trim(),
+        nascimento: document.getElementById('nascimento').value,
+        peso: document.getElementById('peso').value,
+        altura: document.getElementById('altura').value,
+        sexo: document.getElementById('sexo').value
+      };
+      localStorage.setItem(perfilKey, JSON.stringify(perfil));
+      renderPerfil();
+    }
+
+    function renderPerfil(){
+      const el = document.getElementById('perfilInfo');
+      const raw = localStorage.getItem(perfilKey);
+      if(!raw){ el.innerText = 'Perfil não configurado.'; return; }
+      const p = JSON.parse(raw);
+      let s = p.nome || '—';
+      if(p.nascimento) s += ' • Nasc: ' + p.nascimento;
+      if(p.peso) s += ' • ' + p.peso + 'kg';
+      if(p.altura) s += ' • ' + p.altura + 'cm';
+      if(p.sexo) s += ' • ' + p.sexo;
+      el.innerText = s;
+      // preencher formulario
+      document.getElementById('nome').value = p.nome || '';
+      document.getElementById('nascimento').value = p.nascimento || '';
+      document.getElementById('peso').value = p.peso || '';
+      document.getElementById('altura').value = p.altura || '';
+      document.getElementById('sexo').value = p.sexo || '';
+    }
+
+    // --- medicoes ---
+    let medicoes = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+    function salvarLocal(){
+      localStorage.setItem(storageKey, JSON.stringify(medicoes));
+    }
+
+    function gerarId(){
+      return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+    }
+
+    function adicionarMedicao(){
+      const data = document.getElementById('data').value || hojeISO();
+      const hora = document.getElementById('hora').value || new Date().toTimeString().slice(0,5);
+      const refeicao = document.getElementById('refeicao').value;
+      const glicemia = document.getElementById('glicemia').value;
+      const pressao = document.getElementById('pressao').value;
+      const observacoes = document.getElementById('observacoes').value;
+
+      if(!glicemia || !pressao){ alert('Preencha glicemia e pressão.'); return; }
+
+      const entrada = { id: gerarId(), data, hora, refeicao, glicemia: String(glicemia), pressao: String(pressao), observacoes };
+      medicoes.push(entrada);
+      salvarLocal();
+      // se filtro atual for mesma data adicionada, atualizar listagem
+      const filtro = document.getElementById('filtroData').value || hojeISO();
+      if(filtro === data) listarMedicoesPorData(filtro);
+      document.getElementById('glicemia').value = '';
+      document.getElementById('pressao').value = '';
+      document.getElementById('observacoes').value = '';
+      atualizarResumo();
+    }
+
+    function removerMedicao(id){
+      if(!confirm('Remover esta medição?')) return;
+      medicoes = medicoes.filter(m => m.id !== id);
+      salvarLocal();
+      aplicarFiltroData();
+      atualizarResumo();
+    }
+
+    function limparTodasMedicoes(){
+      if(!confirm('Apagar todas as medições? Esta ação não pode ser desfeita.')) return;
+      medicoes = [];
+      salvarLocal();
+      aplicarFiltroData();
+      atualizarResumo();
+    }
+
+    // --- filtro por data (comportamento solicitado) ---
+    function aplicarFiltroData(){
+      const data = document.getElementById('filtroData').value || hojeISO();
+      document.getElementById('filtroData').value = data; // garante valor
+      listarMedicoesPorData(data);
+      gerarGraficos();
+    }
+
+    function limparFiltro(){
+      document.getElementById('filtroData').value = hojeISO();
+      aplicarFiltroData();
+    }
+
+    function listarMedicoesPorData(data){
+      const lista = document.getElementById('listaMedicoes');
+      const filtradas = medicoes.filter(m => m.data === data).sort((a,b)=> a.hora.localeCompare(b.hora));
+      if(filtradas.length === 0){
+        lista.innerHTML = `<div class=\"muted\">Nenhuma medição encontrada para ${data}. Campos ficam zerados ao selecionar uma data sem medições.</div>`;
+      } else {
+        lista.innerHTML = filtradas.map(m => `
+          <div class=\"item\">
+            <div style=\"display:flex;justify-content:space-between\"><div><strong>${m.hora}</strong> — ${m.refeicao}</div><div><button class=\"small\" onclick=\"removerMedicao('${m.id}')\">Remover</button></div></div>
+            <div class=\"muted\">Glicemia: ${m.glicemia} mg/dL | Pressão: ${m.pressao}</div>
+            ${m.observacoes ? `<div style=\"margin-top:6px\">${m.observacoes}</div>` : ''}
+          </div>
+        `).join('');
+      }
+      atualizarResumo();
+    }
+
+    // --- gráficos (consideram filtro de data ou período) ---
+    let chartG=null, chartP=null;
+    function gerarGraficos(){
+      const periodo = parseInt(document.getElementById('periodo').value,10);
+      const corte = new Date(); corte.setDate(corte.getDate() - periodo + 1);
+      const filtroData = document.getElementById('filtroData').value;
+
+      // se filtroData está presente, focar apenas nela; senão, usar período
+      let fonte = [];
+      if(filtroData){ fonte = medicoes.filter(m => m.data === filtroData); }
+      if(!filtroData){ fonte = medicoes.filter(m => new Date(m.data) >= corte); }
+
+      fonte = fonte.sort((a,b)=> (a.data+a.hora).localeCompare(b.data+b.hora));
+      const labels = fonte.map(m=> `${m.data} ${m.hora}`);
+      const glic = fonte.map(m=> parseFloat(m.glicemia));
+      const press = fonte.map(m=> { const p=m.pressao.split('/')[0]; return parseFloat(p); });
+
+      // destroy
+      if(chartG) chartG.destroy();
+      if(chartP) chartP.destroy();
+
+      const ctxG = document.getElementById('graficoGlicemia').getContext('2d');
+      chartG = new Chart(ctxG,{type:'line',data:{labels, datasets:[{label:'Glicemia (mg/dL)', data:glic, borderColor:'#ff5b5b', tension:0.2, fill:false}]}, options:{responsive:true, maintainAspectRatio:false}});
+
+      const ctxP = document.getElementById('graficoPressao').getContext('2d');
+      chartP = new Chart(ctxP,{type:'line',data:{labels, datasets:[{label:'Pressão Sistólica', data:press, borderColor:'#d43f3f', tension:0.2, fill:false}]}, options:{responsive:true, maintainAspectRatio:false}});
+
+      atualizarResumo();
+    }
+
+    function atualizarResumo(){
+      const filtro = document.getElementById('filtroData').value || hojeISO();
+      const filtradas = medicoes.filter(m=>m.data===filtro).sort((a,b)=>a.hora.localeCompare(b.hora));
+      const res = document.getElementById('resumo');
+      if(filtradas.length===0){ res.innerText = `Nenhuma medição para ${filtro}.`; return; }
+      const primeiro = filtradas[0];
+      res.innerHTML = `${filtradas.length} medições em ${filtro}. Primeiro às ${primeiro.hora}.`;
+    }
+
+    // --- PDF (gera documento com cabeçalho e tabela só com medições da data filtrada) ---
+    async function gerarPDF(){
+      const filtro = document.getElementById('filtroData').value || hojeISO();
+      const filtradas = medicoes.filter(m=>m.data===filtro).sort((a,b)=>a.hora.localeCompare(b.hora));
+
+      // montar conteudo no pdfContainer
+      const c = document.getElementById('pdfContainer');
+      c.innerHTML = '';
+      const perfilRaw = localStorage.getItem(perfilKey);
+      const perfil = perfilRaw? JSON.parse(perfilRaw): null;
+
+      const header = document.createElement('div');
+      header.style.display='flex'; header.style.alignItems='center'; header.style.gap='12px';
+      const img = document.createElement('img'); img.src='health.png'; img.style.width='56px'; img.style.height='56px'; img.onerror = ()=>img.remove();
+      const htxt = document.createElement('div');
+      htxt.innerHTML = `<div style=\"font-weight:700;font-size:18px\">Bonato's Health</div><div style=\"font-size:12px;color:#555\">Relatório de medições — ${filtro}</div>`;
+      header.appendChild(img); header.appendChild(htxt);
+      c.appendChild(header);
+
+      if(perfil){
+        const pdiv = document.createElement('div'); pdiv.style.marginTop='10px'; pdiv.style.fontSize='13px'; pdiv.style.color='#333';
+        pdiv.innerText = `Nome: ${perfil.nome||'—'} • Nasc: ${perfil.nascimento||'—'} • Peso: ${perfil.peso||'—'}kg • Alt: ${perfil.altura||'—'}cm • Sexo: ${perfil.sexo||'—'}`;
+        c.appendChild(pdiv);
+      }
+
+      // tabela
+      const tbl = document.createElement('table'); tbl.style.marginTop='12px';
+      const thead = document.createElement('thead'); thead.innerHTML = '<tr><th>Hora</th><th>Refeição</th><th>Glicemia</th><th>Pressão</th></tr>';
+      tbl.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      if(filtradas.length===0){
+        const tr = document.createElement('tr'); tr.innerHTML = '<td colspan="4" style="text-align:center">Nenhuma medição para esta data</td>'; tbody.appendChild(tr);
+      } else {
+        for(const m of filtradas){
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${m.hora}</td><td>${m.refeicao}</td><td>${m.glicemia} mg/dL</td><td>${m.pressao}</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+      tbl.appendChild(tbody);
+      c.appendChild(tbl);
+
+      // gerar imagem e pdf via html2canvas + jsPDF
+      try{
+        const canvas = await html2canvas(c, {scale:2});
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const imgW = pageW - 40;
+        const imgH = (canvas.height * imgW) / canvas.width;
+        let y = 20;
+        pdf.addImage(imgData, 'PNG', 20, y, imgW, imgH);
+        pdf.save(`BonatosHealth_${filtro}.pdf`);
+      }catch(err){
+        alert('Erro ao gerar PDF: '+err.message);
+        console.error(err);
+      }
+    }
+
+    // --- inicialização ---
+    document.getElementById('filtroData').value = hojeISO();
+    document.getElementById('data').value = hojeISO();
+    document.getElementById('hora').value = new Date().toTimeString().slice(0,5);
+    renderPerfil();
+    aplicarFiltroData();
+    // preencher graficos iniciais
+    setTimeout(gerarGraficos,200);
+  </script>
+</body>
+</html>
