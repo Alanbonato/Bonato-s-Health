@@ -47,6 +47,22 @@
   margin: 0 auto;
 }
 
+/* 🔒 impede loop de redimensionamento no mobile */
+#graficos {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto 12px auto;
+}
+
+#graficoGlicemia,
+#graficoPressao {
+  width: 100% !important;
+  height: 220px !important;
+  display: block;
+  margin: 0 auto;
+  touch-action: none; /* evita resize via gesto */
+}
 
   </style>
 </head>
@@ -296,16 +312,16 @@ function gerarGraficos() {
     const press = fonte.map(m => parseFloat(m.pressao.split('/')[0]));
 
     // 🧩 Opções padrão (mantêm tamanho fixo, sem animação)
-    const baseOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: '#666', maxRotation: 0, autoSkip: true } },
-        y: { beginAtZero: true, ticks: { color: '#666' } }
-      }
-    };
+   const baseOptions = {
+  responsive: false,  // 🔒 desativa o resize automático
+  maintainAspectRatio: false,
+  animation: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { ticks: { color: '#666', maxRotation: 0, autoSkip: true } },
+    y: { beginAtZero: true, ticks: { color: '#666' } }
+  }
+};
 
     const gctx = ctxG.getContext('2d');
     chartG = new Chart(gctx, {
