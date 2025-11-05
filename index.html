@@ -64,6 +64,29 @@
   touch-action: none; /* evita resize via gesto */
 }
 
+
+/* Corrige loop infinito no mobile (fixa altura e isola canvas) */
+.grafico-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  height: 220px;
+  margin: 0 auto 12px auto;
+  overflow: hidden;
+}
+
+.grafico-wrapper canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+#graficos {
+  display: block !important; /* impede grid reflow */
+}
+
   </style>
 </head>
 <body>
@@ -129,12 +152,18 @@
         <button onclick="gerarPDF()">Gerar PDF (data filtrada)</button>
       </div>
 
-      <div id="graficos" style="margin-bottom:12px">
-        <div style="margin-bottom:10px"><strong>Glicemia</strong></div>
-        <canvas id="graficoGlicemia" width="380" height="200"></canvas>
-        <div style="margin-top:10px"><strong>Pressão Sistólica (valores)</strong></div>
-        <canvas id="graficoPressao" width="380" height="200"></canvas>
-      </div>
+  <div id="graficos" style="margin-bottom:12px">
+  <div style="margin-bottom:10px"><strong>Glicemia</strong></div>
+  <div class="grafico-wrapper">
+    <canvas id="graficoGlicemia"></canvas>
+  </div>
+
+  <div style="margin-top:10px"><strong>Pressão Sistólica (valores)</strong></div>
+  <div class="grafico-wrapper">
+    <canvas id="graficoPressao"></canvas>
+  </div>
+</div>
+
 
       <div class="card" style="margin-top:8px;padding:8px">
         <div style="font-weight:600;margin-bottom:8px">Resumo (seleção atual)</div>
@@ -312,8 +341,8 @@ function gerarGraficos() {
     const press = fonte.map(m => parseFloat(m.pressao.split('/')[0]));
 
     // 🧩 Opções padrão (mantêm tamanho fixo, sem animação)
-   const baseOptions = {
-  responsive: false,  // 🔒 desativa o resize automático
+const baseOptions = {
+  responsive: false,
   maintainAspectRatio: false,
   animation: false,
   plugins: { legend: { display: false } },
@@ -322,6 +351,7 @@ function gerarGraficos() {
     y: { beginAtZero: true, ticks: { color: '#666' } }
   }
 };
+
 
     const gctx = ctxG.getContext('2d');
     chartG = new Chart(gctx, {
