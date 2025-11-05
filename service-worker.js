@@ -1,3 +1,4 @@
+self.skipWaiting();
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open('bonatos-health-cache-v1').then(cache => {
