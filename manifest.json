@@ -1,0 +1,20 @@
+{
+  "name": "Bonato's Health",
+  "short_name": "Health",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff5b5b",
+  "icons": [
+    {
+      "src": "health.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "health.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
