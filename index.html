@@ -21,7 +21,7 @@
     :root{--accent:#ff5b5b;--muted:#f4f4f4}
     body{font-family:Inter, Arial, sans-serif;margin:0;background:var(--muted);color:#222}
     header{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--accent);color:#fff}
-    header img{width:44px;height:44px;border-radius:8px}
+    header img{width:80px;height:80px;border-radius:8px}
     main{display:grid;grid-template-columns:1fr 420px;gap:20px;padding:18px;max-width:1100px;margin:18px auto}
     .card{background:#fff;padding:16px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
     h2{margin:6px 0 12px;color:#b93d3d}
@@ -36,13 +36,25 @@
     table{width:100%;border-collapse:collapse}
     th,td{padding:6px;border:1px solid #eee;text-align:left;font-size:13px}
     @media(max-width:920px){main{grid-template-columns:1fr}}
+
+
+#graficoGlicemia,
+#graficoPressao {
+  width: 100% !important;
+  max-width: 380px;
+  height: 220px !important;
+  display: block;
+  margin: 0 auto;
+}
+
+
   </style>
 </head>
 <body>
   <header>
     <img src="health.png" alt="Health" onerror="this.style.display='none'" />
     <div>
-      <div style="font-weight:700">Bonato's Health</div>
+      <div style="font-weight:700;font-size:22px">Bonato's Health</div>
       <div style="font-size:12px;opacity:0.9">Aplicativo dedicado a Joice Bonato - Mãezinha</div>
     </div>
   </header>
@@ -244,35 +256,101 @@
       atualizarResumo();
     }
 
-    // --- gráficos (consideram filtro de data ou período) ---
-    let chartG=null, chartP=null;
-    function gerarGraficos(){
-      const periodo = parseInt(document.getElementById('periodo').value,10);
-      const corte = new Date(); corte.setDate(corte.getDate() - periodo + 1);
-      const filtroData = document.getElementById('filtroData').value;
+ let chartG = null;
+let chartP = null;
 
-      // se filtroData está presente, focar apenas nela; senão, usar período
-      let fonte = [];
-      if(filtroData){ fonte = medicoes.filter(m => m.data === filtroData); }
-      if(!filtroData){ fonte = medicoes.filter(m => new Date(m.data) >= corte); }
+function gerarGraficos() {
+  try {
+    const periodo = parseInt(document.getElementById('periodo').value, 10);
+    const corte = new Date();
+    corte.setDate(corte.getDate() - periodo + 1);
+    const filtroData = document.getElementById('filtroData').value;
 
-      fonte = fonte.sort((a,b)=> (a.data+a.hora).localeCompare(b.data+b.hora));
-      const labels = fonte.map(m=> `${m.data} ${m.hora}`);
-      const glic = fonte.map(m=> parseFloat(m.glicemia));
-      const press = fonte.map(m=> { const p=m.pressao.split('/')[0]; return parseFloat(p); });
-
-      // destroy
-      if(chartG) chartG.destroy();
-      if(chartP) chartP.destroy();
-
-      const ctxG = document.getElementById('graficoGlicemia').getContext('2d');
-      chartG = new Chart(ctxG,{type:'line',data:{labels, datasets:[{label:'Glicemia (mg/dL)', data:glic, borderColor:'#ff5b5b', tension:0.2, fill:false}]}, options:{responsive:true, maintainAspectRatio:false}});
-
-      const ctxP = document.getElementById('graficoPressao').getContext('2d');
-      chartP = new Chart(ctxP,{type:'line',data:{labels, datasets:[{label:'Pressão Sistólica', data:press, borderColor:'#d43f3f', tension:0.2, fill:false}]}, options:{responsive:true, maintainAspectRatio:false}});
-
-      atualizarResumo();
+    let fonte = [];
+    if (filtroData) {
+      fonte = medicoes.filter(m => m.data === filtroData);
+    } else {
+      fonte = medicoes.filter(m => new Date(m.data) >= corte);
     }
+
+    const ctxG = document.getElementById('graficoGlicemia');
+    const ctxP = document.getElementById('graficoPressao');
+
+    if (!ctxG || !ctxP) return;
+
+    // 🧹 Apaga e destrói gráficos antigos (evita loop infinito)
+    if (chartG) { chartG.destroy(); chartG = null; }
+    if (chartP) { chartP.destroy(); chartP = null; }
+
+    if (fonte.length === 0) {
+      const gctx = ctxG.getContext('2d');
+      gctx.clearRect(0, 0, ctxG.width, ctxG.height);
+      const pctx = ctxP.getContext('2d');
+      pctx.clearRect(0, 0, ctxP.width, ctxP.height);
+      document.getElementById('resumo').innerText = "Sem dados para gerar gráficos.";
+      return;
+    }
+
+    const labels = fonte.map(m => `${m.data} ${m.hora}`);
+    const glic = fonte.map(m => parseFloat(m.glicemia));
+    const press = fonte.map(m => parseFloat(m.pressao.split('/')[0]));
+
+    // 🧩 Opções padrão (mantêm tamanho fixo, sem animação)
+    const baseOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#666', maxRotation: 0, autoSkip: true } },
+        y: { beginAtZero: true, ticks: { color: '#666' } }
+      }
+    };
+
+    const gctx = ctxG.getContext('2d');
+    chartG = new Chart(gctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Glicemia (mg/dL)',
+          data: glic,
+          borderColor: '#ff5b5b',
+          backgroundColor: 'rgba(255,91,91,0.15)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: 3
+        }]
+      },
+      options: baseOptions
+    });
+
+    const pctx = ctxP.getContext('2d');
+    chartP = new Chart(pctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Pressão Sistólica',
+          data: press,
+          borderColor: '#d43f3f',
+          backgroundColor: 'rgba(212,63,63,0.15)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: 3
+        }]
+      },
+      options: baseOptions
+    });
+
+    atualizarResumo();
+  } catch (err) {
+    console.error("Erro ao gerar gráficos:", err);
+    alert("Erro ao gerar o gráfico. Tente recarregar a página.");
+  }
+}
+
+
 
     function atualizarResumo(){
       const filtro = document.getElementById('filtroData').value || hojeISO();
