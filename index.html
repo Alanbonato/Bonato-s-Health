@@ -37,7 +37,7 @@
     th,td{padding:6px;border:1px solid #eee;text-align:left;font-size:13px}
     @media(max-width:920px){main{grid-template-columns:1fr}}
 
-
+#graficos { display: block !important; }
 #graficoGlicemia,
 #graficoPressao {
   width: 100% !important;
@@ -475,7 +475,15 @@ const baseOptions = {
     renderPerfil();
     aplicarFiltroData();
     // preencher graficos iniciais
-    setTimeout(gerarGraficos,200);
+    // Aguarda o layout estabilizar completamente (evita loop de resize no mobile)
+window.addEventListener("load", () => {
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      gerarGraficos();
+    }, 500);
+  });
+});
+
   </script>
 <script>
 if ('serviceWorker' in navigator) {
